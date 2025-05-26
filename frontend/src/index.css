@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary-dark;
+  }
+  
+  .input {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden;
+  }
+}
+
+/* Global Styles */
+body {
+  @apply font-sans bg-gray-50 text-secondary;
+}
+
+.container {
+  @apply px-4 mx-auto;
+}
+
+/* Custom Utilities */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center py-3 px-6 rounded-md font-medium transition-all duration-300 focus:outline-none;
+  }
+  
+  .btn-outline {
+    @apply border border-gray-300 hover:bg-gray-100;
+  }
+  
+  .form-control {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary;
+  }
+  
+  .section-title {
+    @apply text-2xl font-bold mb-6 text-secondary-dark;
+  }
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.slide-up {
+  animation: slideUp 0.5s ease-in-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Rating Stars */
+.rating svg {
+  @apply inline-block;
+}
+
+.rating-empty {
+  @apply text-gray-300;
+}
+
+.rating-filled {
+  @apply text-yellow-500;
+}
+
+/* Product Grid */
+.product-grid {
+  @apply grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+}
+
+/* Price Filter Range */
+input[type="range"] {
+  @apply w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-200;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  @apply appearance-none w-4 h-4 rounded-full bg-primary cursor-pointer;
+}
