@@ -1,0 +1,64 @@
+const categories = [
+  {
+    name: 'Smartphones',
+    image: '/images/categories/smartphones.jpg',
+    description: 'Les derniers smartphones des meilleures marques',
+    featured: true,
+  },
+  {
+    name: 'Ordinateurs',
+    image: '/images/categories/computers.jpg',
+    description: 'Ordinateurs portables et de bureau pour tous les usages',
+    featured: true,
+  },
+  {
+    name: 'Audio',
+    image: '/images/categories/audio.jpg',
+    description: 'Casques, écouteurs et enceintes de haute qualité',
+    featured: true,
+  },
+  {
+    name: 'TV',
+    image: '/images/categories/tv.jpg',
+    description: 'Téléviseurs 4K et 8K avec les dernières technologies',
+    featured: true,
+  },
+  {
+    name: 'Gaming',
+    image: '/images/categories/gaming.jpg',
+    description: 'Consoles de jeu et accessoires gaming',
+    featured: true,
+  },
+  {
+    name: 'Tablettes',
+    image: '/images/categories/tablets.jpg',
+    description: 'Tablettes tactiles pour le travail et les loisirs',
+    featured: false,
+  },
+  {
+    name: 'Drones',
+    image: '/images/categories/drones.jpg',
+    description: 'Drones professionnels et grand public',
+    featured: false,
+  },
+  {
+    name: 'Caméras',
+    image: '/images/categories/cameras.jpg',
+    description: 'Appareils photo et caméras professionnelles',
+    featured: true,
+  },
+  {
+    name: 'Montres',
+    image: '/images/categories/watches.jpg',
+    description: 'Montres connectées et accessoires',
+    featured: false,
+  },
+  {
+    name: 'Smart Home',
+    image: '/images/categories/smart-home.jpg',
+    description: 'Objets connectés pour la maison intelligente',
+    featured: false,
+  },
+]
+
+export default categories 
