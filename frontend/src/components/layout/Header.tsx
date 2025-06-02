@@ -1,31 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import { ShoppingCart, Menu, User, Search, LogOut, ChevronDown } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { ShoppingCart, Menu, User, Search, LogOut, ChevronDown, X } from 'lucide-react';
 import { useLogoutMutation } from '../../store/slices/usersApiSlice';
 import { logout } from '../../store/slices/authSlice';
-import { RootState } from '../../store';
+import { RootState } from '../../store/store';
 import SearchBox from '../SearchBox';
 import { useGetCategoriesQuery } from '../../store/slices/categoriesApiSlice';
+import { Category } from '../../types';
 
 const Header = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
-  const [searchVisible, setSearchVisible] = useState(false);
-  
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isScrolled, setIsScrolled] = useState(false);
+
   const { cartItems } = useSelector((state: RootState) => state.cart);
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  
+
+  const { data: categories } = useGetCategoriesQuery();
+  const [logoutApiCall] = useLogoutMutation();
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [logoutApiCall] = useLogoutMutation();
-  
-  const { data: categories } = useGetCategoriesQuery({});
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const logoutHandler = async () => {
     try {
-      await logoutApiCall({}).unwrap();
+      await logoutApiCall().unwrap();
       dispatch(logout());
       navigate('/login');
     } catch (err) {
@@ -33,21 +43,17 @@ const Header = () => {
     }
   };
 
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-    if (categoryMenuOpen) setCategoryMenuOpen(false);
-  };
-
-  const toggleCategoryMenu = () => {
-    setCategoryMenuOpen(!categoryMenuOpen);
-  };
-
-  const toggleSearch = () => {
-    setSearchVisible(!searchVisible);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${searchQuery}`);
+      setSearchQuery('');
+      setIsSearchOpen(false);
+    }
   };
 
   return (
-    <header className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
+    <header className={`bg-white shadow-md fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'shadow-lg' : ''}`}>
       <div className="container mx-auto">
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
@@ -56,232 +62,212 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            <div className="relative group">
-              <button 
-                className="flex items-center text-secondary hover:text-primary"
-                onClick={toggleCategoryMenu}
-              >
-                Categories <ChevronDown size={16} className="ml-1" />
-              </button>
-              
-              {categoryMenuOpen && (
-                <div className="absolute z-10 mt-2 w-48 bg-white rounded-md shadow-lg py-1">
-                  {categories?.map((category) => (
-                    <Link
-                      key={category._id}
-                      to={`/products/category/${category._id}`}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setCategoryMenuOpen(false)}
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <Link to="/products" className="text-secondary hover:text-primary">
-              All Products
+          <nav className="hidden md:flex items-center space-x-8">
+            <Link to="/" className="text-gray-600 hover:text-primary transition-colors">
+              Accueil
             </Link>
-            
-            <button onClick={toggleSearch} className="text-secondary hover:text-primary">
+            <Link to="/products" className="text-gray-600 hover:text-primary transition-colors">
+              Produits
+            </Link>
+            <div className="relative group">
+              <button className="text-gray-600 hover:text-primary transition-colors flex items-center">
+                Catégories
+              </button>
+              <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 hidden group-hover:block">
+                {categories?.map((category: Category) => (
+                  <Link
+                    key={category._id}
+                    to={`/category/${category._id}`}
+                    className="block px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-primary transition-colors"
+                  >
+                    {category.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </nav>
+
+          {/* Search, Cart, and User Icons */}
+          <div className="hidden md:flex items-center space-x-4">
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="text-gray-600 hover:text-primary transition-colors"
+            >
               <Search size={20} />
             </button>
-            
-            <Link to="/cart" className="text-secondary hover:text-primary relative">
+            <Link to="/cart" className="text-gray-600 hover:text-primary transition-colors relative">
               <ShoppingCart size={20} />
               {cartItems.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {cartItems.reduce((a, c) => a + c.qty, 0)}
+                <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {cartItems.reduce((acc, item) => acc + item.qty, 0)}
                 </span>
               )}
             </Link>
-            
             {userInfo ? (
               <div className="relative group">
-                <button className="flex items-center text-secondary hover:text-primary">
-                  {userInfo.name} <ChevronDown size={16} className="ml-1" />
+                <button className="text-gray-600 hover:text-primary transition-colors">
+                  <User size={20} />
                 </button>
-                <div className="absolute right-0 z-10 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block">
-                  <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                    Profile
-                  </Link>
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 hidden group-hover:block">
                   {userInfo.isAdmin && (
-                    <>
-                      <Link to="/admin/productlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Products
-                      </Link>
-                      <Link to="/admin/orderlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Orders
-                      </Link>
-                      <Link to="/admin/userlist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Users
-                      </Link>
-                      <Link to="/admin/categorylist" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Categories
-                      </Link>
-                    </>
+                    <Link
+                      to="/admin/dashboard"
+                      className="block px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-primary transition-colors"
+                    >
+                      Dashboard
+                    </Link>
                   )}
+                  <Link
+                    to="/profile"
+                    className="block px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-primary transition-colors"
+                  >
+                    Profil
+                  </Link>
                   <button
                     onClick={logoutHandler}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="block w-full text-left px-4 py-2 text-gray-600 hover:bg-gray-100 hover:text-primary transition-colors"
                   >
-                    Logout
+                    Déconnexion
                   </button>
                 </div>
               </div>
             ) : (
-              <Link to="/login" className="text-secondary hover:text-primary flex items-center">
-                <User size={20} className="mr-1" /> Sign In
+              <Link to="/login" className="text-gray-600 hover:text-primary transition-colors">
+                <User size={20} />
               </Link>
             )}
-          </nav>
+          </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-4">
-            <Link to="/cart" className="text-secondary hover:text-primary relative">
-              <ShoppingCart size={20} />
-              {cartItems.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {cartItems.reduce((a, c) => a + c.qty, 0)}
-                </span>
-              )}
-            </Link>
-            
-            <button 
-              onClick={toggleSearch}
-              className="text-secondary hover:text-primary"
-            >
-              <Search size={20} />
-            </button>
-            
-            <button
-              onClick={toggleMobileMenu}
-              className="text-secondary hover:text-primary"
-            >
-              <Menu size={24} />
-            </button>
-          </div>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden text-gray-600 hover:text-primary transition-colors"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
 
-        {/* Search Box */}
-        {searchVisible && (
-          <div className="py-3 border-t">
-            <SearchBox />
-          </div>
-        )}
-        
         {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden py-3 border-t">
-            <nav className="flex flex-col space-y-3 pb-3">
-              <Link 
+        {isMenuOpen && (
+          <div className="md:hidden py-4 border-t">
+            <nav className="flex flex-col space-y-4">
+              <Link
                 to="/"
-                className="text-secondary hover:text-primary py-2"
-                onClick={() => setMobileMenuOpen(false)}
+                className="text-gray-600 hover:text-primary transition-colors"
+                onClick={() => setIsMenuOpen(false)}
               >
-                Home
+                Accueil
               </Link>
-              
-              <div>
-                <button 
-                  onClick={toggleCategoryMenu}
-                  className="flex items-center w-full text-left text-secondary hover:text-primary py-2"
+              <Link
+                to="/products"
+                className="text-gray-600 hover:text-primary transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Produits
+              </Link>
+              <div className="space-y-2">
+                <div className="text-gray-600 font-medium">Catégories</div>
+                {categories?.map((category: Category) => (
+                  <Link
+                    key={category._id}
+                    to={`/category/${category._id}`}
+                    className="block pl-4 text-gray-600 hover:text-primary transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {category.name}
+                  </Link>
+                ))}
+              </div>
+              <div className="flex items-center space-x-4 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setIsSearchOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="text-gray-600 hover:text-primary transition-colors"
                 >
-                  Categories <ChevronDown size={16} className="ml-1" />
+                  <Search size={20} />
                 </button>
-                
-                {categoryMenuOpen && (
-                  <div className="pl-4 flex flex-col space-y-2 mt-2">
-                    {categories?.map((category) => (
+                <Link
+                  to="/cart"
+                  className="text-gray-600 hover:text-primary transition-colors relative"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <ShoppingCart size={20} />
+                  {cartItems.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartItems.reduce((acc, item) => acc + item.qty, 0)}
+                    </span>
+                  )}
+                </Link>
+                {userInfo ? (
+                  <div className="space-y-2">
+                    {userInfo.isAdmin && (
                       <Link
-                        key={category._id}
-                        to={`/products/category/${category._id}`}
-                        className="text-secondary hover:text-primary py-1"
-                        onClick={() => {
-                          setCategoryMenuOpen(false);
-                          setMobileMenuOpen(false);
-                        }}
+                        to="/admin/dashboard"
+                        className="block text-gray-600 hover:text-primary transition-colors"
+                        onClick={() => setIsMenuOpen(false)}
                       >
-                        {category.name}
+                        Dashboard
                       </Link>
-                    ))}
+                    )}
+                    <Link
+                      to="/profile"
+                      className="block text-gray-600 hover:text-primary transition-colors"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Profil
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logoutHandler();
+                        setIsMenuOpen(false);
+                      }}
+                      className="block text-gray-600 hover:text-primary transition-colors"
+                    >
+                      Déconnexion
+                    </button>
                   </div>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="text-gray-600 hover:text-primary transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <User size={20} />
+                  </Link>
                 )}
               </div>
-              
-              <Link 
-                to="/products"
-                className="text-secondary hover:text-primary py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                All Products
-              </Link>
-              
-              {userInfo ? (
-                <>
-                  <Link 
-                    to="/profile"
-                    className="text-secondary hover:text-primary py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Profile
-                  </Link>
-                  
-                  {userInfo.isAdmin && (
-                    <>
-                      <Link 
-                        to="/admin/productlist"
-                        className="text-secondary hover:text-primary py-2"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Products
-                      </Link>
-                      <Link 
-                        to="/admin/orderlist"
-                        className="text-secondary hover:text-primary py-2"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Orders
-                      </Link>
-                      <Link 
-                        to="/admin/userlist"
-                        className="text-secondary hover:text-primary py-2"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Users
-                      </Link>
-                      <Link 
-                        to="/admin/categorylist"
-                        className="text-secondary hover:text-primary py-2"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Categories
-                      </Link>
-                    </>
-                  )}
-                  
-                  <button
-                    onClick={() => {
-                      logoutHandler();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex items-center text-secondary hover:text-primary py-2"
-                  >
-                    <LogOut size={18} className="mr-1" /> Logout
-                  </button>
-                </>
-              ) : (
-                <Link 
-                  to="/login"
-                  className="flex items-center text-secondary hover:text-primary py-2"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <User size={18} className="mr-1" /> Sign In
-                </Link>
-              )}
             </nav>
+          </div>
+        )}
+
+        {/* Search Overlay */}
+        {isSearchOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center pt-20 px-4">
+            <div className="bg-white rounded-lg p-4 w-full max-w-2xl">
+              <form onSubmit={handleSearch} className="flex items-center">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Rechercher des produits..."
+                  className="flex-1 px-4 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="submit"
+                  className="bg-primary text-white px-6 py-2 rounded-r-lg hover:bg-primary/90 transition-colors"
+                >
+                  Rechercher
+                </button>
+              </form>
+              <button
+                onClick={() => setIsSearchOpen(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
           </div>
         )}
       </div>

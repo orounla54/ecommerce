@@ -1,40 +1,38 @@
-import { apiSlice } from './apiSlice';
-import { CATEGORIES_URL } from '../../constants';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { Category } from '../../types';
 
-export const categoriesApiSlice = apiSlice.injectEndpoints({
+export const categoriesApi = createApi({
+  reducerPath: 'categoriesApi',
+  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  tagTypes: ['Category'],
   endpoints: (builder) => ({
-    getCategories: builder.query({
-      query: () => ({
-        url: CATEGORIES_URL,
-      }),
-      keepUnusedDataFor: 5,
+    getCategories: builder.query<Category[], void>({
+      query: () => '/categories',
       providesTags: ['Category'],
     }),
-    getCategoryDetails: builder.query({
-      query: (categoryId) => ({
-        url: `${CATEGORIES_URL}/${categoryId}`,
-      }),
-      keepUnusedDataFor: 5,
+    getCategoryById: builder.query<Category, string>({
+      query: (id) => `/categories/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Category', id }],
     }),
-    createCategory: builder.mutation({
-      query: (data) => ({
-        url: CATEGORIES_URL,
+    createCategory: builder.mutation<Category, Partial<Category>>({
+      query: (category) => ({
+        url: '/categories',
         method: 'POST',
-        body: data,
+        body: category,
       }),
       invalidatesTags: ['Category'],
     }),
-    updateCategory: builder.mutation({
-      query: (data) => ({
-        url: `${CATEGORIES_URL}/${data.categoryId}`,
+    updateCategory: builder.mutation<Category, { id: string; category: Partial<Category> }>({
+      query: ({ id, category }) => ({
+        url: `/categories/${id}`,
         method: 'PUT',
-        body: data,
+        body: category,
       }),
-      invalidatesTags: ['Category'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Category', id }],
     }),
-    deleteCategory: builder.mutation({
-      query: (categoryId) => ({
-        url: `${CATEGORIES_URL}/${categoryId}`,
+    deleteCategory: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/categories/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Category'],
@@ -44,8 +42,8 @@ export const categoriesApiSlice = apiSlice.injectEndpoints({
 
 export const {
   useGetCategoriesQuery,
-  useGetCategoryDetailsQuery,
+  useGetCategoryByIdQuery,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
-} = categoriesApiSlice;
+} = categoriesApi;

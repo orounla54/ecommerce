@@ -1,72 +1,86 @@
-import { apiSlice } from './apiSlice';
-import { USERS_URL } from '../../constants';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { User } from '../../types';
 
-export const usersApiSlice = apiSlice.injectEndpoints({
+export const usersApi = createApi({
+  reducerPath: 'usersApi',
+  baseQuery: fetchBaseQuery({
+    baseUrl: '/api',
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as any).auth.userInfo?.token;
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  tagTypes: ['User'],
   endpoints: (builder) => ({
-    login: builder.mutation({
-      query: (data) => ({
-        url: `${USERS_URL}/login`,
+    login: builder.mutation<{ userInfo: User; token: string }, { email: string; password: string }>({
+      query: (credentials) => ({
+        url: '/users/login',
         method: 'POST',
-        body: data,
+        body: credentials,
       }),
     }),
-    register: builder.mutation({
-      query: (data) => ({
-        url: `${USERS_URL}`,
+    register: builder.mutation<
+      { userInfo: User; token: string },
+      { name: string; email: string; password: string }
+    >({
+      query: (userData) => ({
+        url: '/users',
         method: 'POST',
-        body: data,
+        body: userData,
       }),
     }),
-    logout: builder.mutation({
+    logout: builder.mutation<void, void>({
       query: () => ({
-        url: `${USERS_URL}/logout`,
+        url: '/users/logout',
         method: 'POST',
       }),
     }),
-    profile: builder.mutation({
-      query: (data) => ({
-        url: `${USERS_URL}/profile`,
-        method: 'PUT',
-        body: data,
-      }),
-    }),
-    getUsers: builder.query({
-      query: () => ({
-        url: USERS_URL,
-      }),
+    getUsers: builder.query<User[], void>({
+      query: () => '/users',
       providesTags: ['User'],
-      keepUnusedDataFor: 5,
     }),
-    deleteUser: builder.mutation({
-      query: (userId) => ({
-        url: `${USERS_URL}/${userId}`,
+    getUserById: builder.query<User, string>({
+      query: (id) => `/users/${id}`,
+      providesTags: (result, error, id) => [{ type: 'User', id }],
+    }),
+    updateUser: builder.mutation<User, { id: string; user: Partial<User> }>({
+      query: ({ id, user }) => ({
+        url: `/users/${id}`,
+        method: 'PUT',
+        body: user,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'User', id }],
+    }),
+    deleteUser: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/users/${id}`,
         method: 'DELETE',
       }),
-    }),
-    getUserDetails: builder.query({
-      query: (userId) => ({
-        url: `${USERS_URL}/${userId}`,
-      }),
-      keepUnusedDataFor: 5,
-    }),
-    updateUser: builder.mutation({
-      query: (data) => ({
-        url: `${USERS_URL}/${data.userId}`,
-        method: 'PUT',
-        body: data,
-      }),
       invalidatesTags: ['User'],
+    }),
+    updateUserProfile: builder.mutation<
+      { userInfo: User; token: string },
+      { name?: string; email?: string; password?: string }
+    >({
+      query: (userData) => ({
+        url: '/users/profile',
+        method: 'PUT',
+        body: userData,
+      }),
     }),
   }),
 });
 
 export const {
   useLoginMutation,
-  useLogoutMutation,
   useRegisterMutation,
-  useProfileMutation,
+  useLogoutMutation,
   useGetUsersQuery,
-  useDeleteUserMutation,
-  useGetUserDetailsQuery,
+  useGetUserByIdQuery,
   useUpdateUserMutation,
-} = usersApiSlice;
+  useDeleteUserMutation,
+  useUpdateUserProfileMutation,
+} = usersApi;

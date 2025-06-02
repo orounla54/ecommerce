@@ -1,63 +1,66 @@
-import { apiSlice } from './apiSlice';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { Product } from '../../types';
+import config from '../../config';
 import { PRODUCTS_URL, UPLOAD_URL } from '../../constants';
 
-export const productsApiSlice = apiSlice.injectEndpoints({
+export const productsApi = createApi({
+  reducerPath: 'productsApi',
+  baseQuery: fetchBaseQuery({ baseUrl: config.apiUrl }),
+  tagTypes: ['Product'],
   endpoints: (builder) => ({
-    getProducts: builder.query({
-      query: ({ keyword, pageNumber }) => ({
-        url: PRODUCTS_URL,
-        params: { keyword, pageNumber },
+    getProducts: builder.query<{ products: Product[]; pages: number; page: number }, { keyword?: string; pageNumber?: number }>({
+      query: ({ keyword = '', pageNumber = 1 }) => ({
+        url: `/products?keyword=${keyword}&pageNumber=${pageNumber}`,
       }),
-      keepUnusedDataFor: 5,
       providesTags: ['Product'],
     }),
-    getProductsByCategory: builder.query({
-      query: ({ categoryId, pageNumber }) => ({
-        url: `${PRODUCTS_URL}/category/${categoryId}?pageNumber=${pageNumber}`,
-      }),
-      keepUnusedDataFor: 5,
+    getProductById: builder.query<Product, string>({
+      query: (id) => `/products/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Product', id }],
     }),
-    getProductDetails: builder.query({
-      query: (productId) => ({
-        url: `${PRODUCTS_URL}/${productId}`,
-      }),
-      keepUnusedDataFor: 5,
-    }),
-    createProduct: builder.mutation({
-      query: () => ({
-        url: PRODUCTS_URL,
+    createProduct: builder.mutation<Product, Partial<Product>>({
+      query: (product) => ({
+        url: '/products',
         method: 'POST',
+        body: product,
       }),
       invalidatesTags: ['Product'],
     }),
-    updateProduct: builder.mutation({
-      query: (data) => ({
-        url: `${PRODUCTS_URL}/${data.productId}`,
+    updateProduct: builder.mutation<Product, { id: string; product: Partial<Product> }>({
+      query: ({ id, product }) => ({
+        url: `/products/${id}`,
         method: 'PUT',
-        body: data,
+        body: product,
       }),
-      invalidatesTags: ['Product'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Product', id }],
     }),
-    deleteProduct: builder.mutation({
-      query: (productId) => ({
-        url: `${PRODUCTS_URL}/${productId}`,
+    deleteProduct: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/products/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Product'],
     }),
-    createReview: builder.mutation({
-      query: (data) => ({
-        url: `${PRODUCTS_URL}/${data.productId}/reviews`,
+    createProductReview: builder.mutation<
+      void,
+      { productId: string; review: { rating: number; comment: string } }
+    >({
+      query: ({ productId, review }) => ({
+        url: `/products/${productId}/reviews`,
         method: 'POST',
-        body: data,
+        body: review,
       }),
-      invalidatesTags: ['Product'],
+      invalidatesTags: (result, error, { productId }) => [{ type: 'Product', id: productId }],
     }),
-    getTopProducts: builder.query({
-      query: () => ({
-        url: `${PRODUCTS_URL}/top`,
+    getProductsByCategory: builder.query<{ products: Product[]; pages: number; page: number }, { categoryId: string; pageNumber?: number }>({
+      query: ({ categoryId, pageNumber = 1 }) => ({
+        url: `/products/category/${categoryId}?pageNumber=${pageNumber}`,
       }),
-      keepUnusedDataFor: 5,
+      providesTags: ['Product'],
+    }),
+    getTopProducts: builder.query<Product[], void>({
+      query: () => '/products/top',
+      providesTags: ['Product'],
     }),
     getFeaturedProducts: builder.query({
       query: () => ({
@@ -83,14 +86,14 @@ export const productsApiSlice = apiSlice.injectEndpoints({
 
 export const {
   useGetProductsQuery,
-  useGetProductsByCategoryQuery,
-  useGetProductDetailsQuery,
+  useGetProductByIdQuery,
   useCreateProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
-  useCreateReviewMutation,
+  useCreateProductReviewMutation,
+  useGetProductsByCategoryQuery,
   useGetTopProductsQuery,
   useGetFeaturedProductsQuery,
   useGetNewProductsQuery,
   useUploadProductImageMutation,
-} = productsApiSlice;
+} = productsApi;

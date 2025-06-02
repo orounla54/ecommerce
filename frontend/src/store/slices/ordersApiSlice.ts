@@ -1,61 +1,63 @@
-import { apiSlice } from './apiSlice';
-import { ORDERS_URL, PAYPAL_URL } from '../../constants';
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { Order } from '../../types';
 
-export const ordersApiSlice = apiSlice.injectEndpoints({
+export const ordersApi = createApi({
+  reducerPath: 'ordersApi',
+  baseQuery: fetchBaseQuery({
+    baseUrl: '/api',
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as any).auth.userInfo?.token;
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  tagTypes: ['Order'],
   endpoints: (builder) => ({
-    createOrder: builder.mutation({
+    createOrder: builder.mutation<Order, Partial<Order>>({
       query: (order) => ({
-        url: ORDERS_URL,
+        url: '/orders',
         method: 'POST',
         body: order,
       }),
+      invalidatesTags: ['Order'],
     }),
-    getOrderDetails: builder.query({
-      query: (orderId) => ({
-        url: `${ORDERS_URL}/${orderId}`,
-      }),
-      keepUnusedDataFor: 5,
+    getOrderById: builder.query<Order, string>({
+      query: (id) => `/orders/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Order', id }],
     }),
-    payOrder: builder.mutation({
-      query: ({ orderId, details }) => ({
-        url: `${ORDERS_URL}/${orderId}/pay`,
+    getMyOrders: builder.query<Order[], void>({
+      query: () => '/orders/myorders',
+      providesTags: ['Order'],
+    }),
+    getOrders: builder.query<Order[], void>({
+      query: () => '/orders',
+      providesTags: ['Order'],
+    }),
+    updateOrderToPaid: builder.mutation<Order, { id: string; paymentResult: any }>({
+      query: ({ id, paymentResult }) => ({
+        url: `/orders/${id}/pay`,
         method: 'PUT',
-        body: details,
+        body: paymentResult,
       }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Order', id }],
     }),
-    getPaypalClientId: builder.query({
-      query: () => ({
-        url: PAYPAL_URL,
-      }),
-      keepUnusedDataFor: 5,
-    }),
-    getMyOrders: builder.query({
-      query: () => ({
-        url: `${ORDERS_URL}/myorders`,
-      }),
-      keepUnusedDataFor: 5,
-    }),
-    getOrders: builder.query({
-      query: () => ({
-        url: ORDERS_URL,
-      }),
-      keepUnusedDataFor: 5,
-    }),
-    deliverOrder: builder.mutation({
-      query: (orderId) => ({
-        url: `${ORDERS_URL}/${orderId}/deliver`,
+    updateOrderToDelivered: builder.mutation<Order, string>({
+      query: (id) => ({
+        url: `/orders/${id}/deliver`,
         method: 'PUT',
       }),
+      invalidatesTags: (result, error, id) => [{ type: 'Order', id }],
     }),
   }),
 });
 
 export const {
   useCreateOrderMutation,
-  useGetOrderDetailsQuery,
-  usePayOrderMutation,
-  useGetPaypalClientIdQuery,
+  useGetOrderByIdQuery,
   useGetMyOrdersQuery,
   useGetOrdersQuery,
-  useDeliverOrderMutation,
-} = ordersApiSlice;
+  useUpdateOrderToPaidMutation,
+  useUpdateOrderToDeliveredMutation,
+} = ordersApi;
