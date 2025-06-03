@@ -4,9 +4,10 @@ import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-toastify';
 import { ArrowLeft } from 'lucide-react';
 import {
-  useGetCategoryDetailsQuery,
+  useGetCategoryByIdQuery,
   useUpdateCategoryMutation,
 } from '../../store/slices/categoriesApiSlice';
+import { ApiErrorResponse, getErrorMessage } from '../../types';
 import Loader from '../../components/Loader';
 import Message from '../../components/Message';
 
@@ -18,7 +19,7 @@ const CategoryEditPage = () => {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
 
-  const { data: category, isLoading, error } = useGetCategoryDetailsQuery(categoryId as string);
+  const { data: category, isLoading, error } = useGetCategoryByIdQuery(categoryId ?? '');
   const [updateCategory, { isLoading: loadingUpdate }] = useUpdateCategoryMutation();
 
   useEffect(() => {
@@ -34,10 +35,13 @@ const CategoryEditPage = () => {
     
     try {
       await updateCategory({
-        categoryId,
-        name,
-        description,
-        image,
+        id: categoryId ?? '',
+        category: {
+          name,
+          description,
+          image,
+          productCount: category?.productCount || 0,
+        },
       }).unwrap();
       
       toast.success('Category updated');
@@ -67,7 +71,7 @@ const CategoryEditPage = () => {
           <Loader />
         ) : error ? (
           <Message variant="danger">
-            {error?.data?.message || error.error}
+            {getErrorMessage(error as ApiErrorResponse)}
           </Message>
         ) : (
           <form onSubmit={submitHandler} className="p-6 space-y-6">

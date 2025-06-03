@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { ShoppingCart, Menu, User, Search, LogOut, ChevronDown, X } from 'lucide-react';
-import { useLogoutMutation } from '../../store/slices/usersApiSlice';
+import { useSelector, useDispatch } from 'react-redux';
+import { ShoppingCart, Menu, User as UserIcon, Search, X, LogOut } from 'lucide-react';
+import { useLogoutMutation } from '../../store/slices/authApiSlice';
 import { logout } from '../../store/slices/authSlice';
-import { RootState } from '../../store/store';
+import { RootState } from '../../types';
 import SearchBox from '../SearchBox';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { useGetCategoriesQuery } from '../../store/slices/categoriesApiSlice';
 import { Category } from '../../types';
 
@@ -18,7 +27,7 @@ const Header = () => {
   const { cartItems } = useSelector((state: RootState) => state.cart);
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
-  const { data: categories } = useGetCategoriesQuery();
+  const { data: categories } = useGetCategoriesQuery({ pageNumber: 1 });
   const [logoutApiCall] = useLogoutMutation();
 
   const dispatch = useDispatch();
@@ -106,7 +115,7 @@ const Header = () => {
             {userInfo ? (
               <div className="relative group">
                 <button className="text-gray-600 hover:text-primary transition-colors">
-                  <User size={20} />
+                  <UserIcon size={20} />
                 </button>
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 hidden group-hover:block">
                   {userInfo.isAdmin && (
@@ -133,7 +142,7 @@ const Header = () => {
               </div>
             ) : (
               <Link to="/login" className="text-gray-600 hover:text-primary transition-colors">
-                <User size={20} />
+                <UserIcon size={20} />
               </Link>
             )}
           </div>
@@ -234,7 +243,7 @@ const Header = () => {
                     className="text-gray-600 hover:text-primary transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <User size={20} />
+                    <UserIcon size={20} />
                   </Link>
                 )}
               </div>

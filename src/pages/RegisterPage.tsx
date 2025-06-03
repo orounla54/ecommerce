@@ -4,10 +4,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-toastify';
 import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { useRegisterMutation } from '../store/slices/usersApiSlice';
+import { useRegisterMutation } from '../store/slices/authApiSlice';
 import { setCredentials } from '../store/slices/authSlice';
 import { RootState } from '../store';
 import Loader from '../components/Loader';
+import { ApiErrorResponse, getErrorMessage } from '../types';
+import Message from '../components/Message';
+import FormContainer from '../components/FormContainer';
+import { Form, Button, Row, Col } from 'react-bootstrap';
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -15,6 +19,7 @@ const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -41,15 +46,22 @@ const RegisterPage = () => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-    } else {
-      try {
-        const res = await register({ name, email, password }).unwrap();
-        dispatch(setCredentials(res));
-        navigate(redirect);
-      } catch (err: any) {
-        toast.error(err?.data?.message || err.error);
-      }
+      setMessage('Passwords do not match');
+      return;
+    }
+
+    try {
+      const res = await register({ name, email, password }).unwrap();
+      dispatch(setCredentials({
+        _id: res._id,
+        name: res.name,
+        email: res.email,
+        isAdmin: res.isAdmin,
+        token: res.token,
+      }));
+      navigate(redirect);
+    } catch (err) {
+      toast.error(getErrorMessage(err as ApiErrorResponse));
     }
   };
 
@@ -59,124 +71,65 @@ const RegisterPage = () => {
         <title>Register | TechShop</title>
       </Helmet>
 
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-6 text-center">Create Account</h1>
-        
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <form onSubmit={submitHandler}>
-            <div className="mb-4">
-              <label htmlFor="name" className="block text-gray-700 mb-2">
-                Name
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User size={18} className="text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  id="name"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="form-control pl-10"
-                  required
-                />
-              </div>
-            </div>
+      <FormContainer>
+        <h1>Sign Up</h1>
+        {message && <Message variant="danger">{message}</Message>}
+        {isLoading && <Loader />}
+        <Form onSubmit={submitHandler}>
+          <Form.Group className="my-2" controlId="name">
+            <Form.Label>Name</Form.Label>
+            <Form.Control
+              type="name"
+              placeholder="Enter name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            ></Form.Control>
+          </Form.Group>
 
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail size={18} className="text-gray-400" />
-                </div>
-                <input
-                  type="email"
-                  id="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="form-control pl-10"
-                  required
-                />
-              </div>
-            </div>
+          <Form.Group className="my-2" controlId="email">
+            <Form.Label>Email Address</Form.Label>
+            <Form.Control
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            ></Form.Control>
+          </Form.Group>
 
-            <div className="mb-4">
-              <label htmlFor="password" className="block text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-gray-400" />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="form-control pl-10 pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={toggleShowPassword}
-                >
-                  {showPassword ? (
-                    <EyeOff size={18} className="text-gray-400" />
-                  ) : (
-                    <Eye size={18} className="text-gray-400" />
-                  )}
-                </button>
-              </div>
-            </div>
+          <Form.Group className="my-2" controlId="password">
+            <Form.Label>Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            ></Form.Control>
+          </Form.Group>
 
-            <div className="mb-6">
-              <label htmlFor="confirmPassword" className="block text-gray-700 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock size={18} className="text-gray-400" />
-                </div>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="confirmPassword"
-                  placeholder="Confirm password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="form-control pl-10"
-                  required
-                />
-              </div>
-            </div>
+          <Form.Group className="my-2" controlId="confirmPassword">
+            <Form.Label>Confirm Password</Form.Label>
+            <Form.Control
+              type="password"
+              placeholder="Confirm password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            ></Form.Control>
+          </Form.Group>
 
-            <button
-              type="submit"
-              className="btn btn-primary w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? <Loader /> : 'Register'}
-            </button>
-          </form>
+          <Button disabled={isLoading} type="submit" variant="primary">
+            Register
+          </Button>
+        </Form>
 
-          <div className="mt-4 text-center">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <Link
-                to={redirect ? `/login?redirect=${redirect}` : '/login'}
-                className="text-primary hover:underline"
-              >
-                Sign In
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
+        <Row className="py-3">
+          <Col>
+            Already have an account?{' '}
+            <Link to={redirect ? `/login?redirect=${redirect}` : '/login'}>
+              Login
+            </Link>
+          </Col>
+        </Row>
+      </FormContainer>
     </>
   );
 };

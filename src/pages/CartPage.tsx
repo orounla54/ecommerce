@@ -3,8 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import { Trash2, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { addToCart, removeFromCart } from '../store/slices/cartSlice';
-import { RootState } from '../store';
+import { RootState, CartItem } from '../types';
 import Message from '../components/Message';
+import { Product } from '../types';
 
 const CartPage = () => {
   const navigate = useNavigate();
@@ -13,11 +14,12 @@ const CartPage = () => {
   const cart = useSelector((state: RootState) => state.cart);
   const { cartItems } = cart;
 
-  const addToCartHandler = (product, qty) => {
-    dispatch(addToCart({ ...product, qty }));
+  const addToCartHandler = (item: CartItem) => {
+    const qty = item.qty + 1;
+    dispatch(addToCart({ ...item, qty }));
   };
 
-  const removeFromCartHandler = (id) => {
+  const removeFromCartHandler = (id: string) => {
     dispatch(removeFromCart(id));
   };
 
@@ -31,140 +33,85 @@ const CartPage = () => {
         <title>Shopping Cart | TechShop</title>
       </Helmet>
 
-      <div className="flex flex-col md:flex-row gap-8">
-        <div className="md:w-2/3">
-          <h1 className="text-2xl font-bold mb-6">Shopping Cart</h1>
-
-          {cartItems.length === 0 ? (
-            <Message>
-              Your cart is empty. <Link to="/" className="text-primary hover:underline">Go Back</Link>
-            </Message>
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Product
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Price
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Quantity
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <span className="sr-only">Actions</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {cartItems.map((item) => (
-                      <tr key={item._id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="h-16 w-16 object-contain rounded"
-                            />
-                            <div className="ml-4">
-                              <Link
-                                to={`/product/${item._id}`}
-                                className="text-gray-900 font-medium hover:text-primary"
-                              >
-                                {item.name}
-                              </Link>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-gray-900">${item.price.toFixed(2)}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <select
-                            value={item.qty}
-                            onChange={(e) =>
-                              addToCartHandler(item, Number(e.target.value))
-                            }
-                            className="form-control w-20"
-                          >
-                            {[...Array(item.countInStock).keys()].map((x) => (
-                              <option key={x + 1} value={x + 1}>
-                                {x + 1}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-gray-900">
-                            ${(item.qty * item.price).toFixed(2)}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <button
-                            className="text-red-600 hover:text-red-800"
-                            onClick={() => removeFromCartHandler(item._id)}
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6">
-            <Link
-              to="/products"
-              className="inline-flex items-center text-primary hover:text-primary-dark"
-            >
-              <ArrowLeft size={16} className="mr-1" /> Continue Shopping
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-8">Shopping Cart</h1>
+        {cartItems.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">Your cart is empty</p>
+            <Link to="/" className="text-primary hover:underline">
+              Go Shopping
             </Link>
           </div>
-        </div>
-
-        <div className="md:w-1/3">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-bold mb-4">Order Summary</h2>
-            
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-gray-600">
-                <span>Subtotal ({cartItems.reduce((acc, item) => acc + item.qty, 0)} items)</span>
-                <span>${cart.itemsPrice.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Shipping</span>
-                <span>${cart.shippingPrice.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Tax</span>
-                <span>${cart.taxPrice.toFixed(2)}</span>
-              </div>
-              <div className="border-t pt-3 flex justify-between font-bold">
-                <span>Total</span>
-                <span>${cart.totalPrice.toFixed(2)}</span>
-              </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2">
+              {cartItems.map((item) => (
+                <div key={item.product} className="flex items-center py-4 border-b">
+                  <div className="w-24 h-24 flex-shrink-0">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </div>
+                  <div className="ml-4 flex-grow">
+                    <Link
+                      to={`/product/${item.product}`}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {item.name}
+                    </Link>
+                    <p className="text-sm text-gray-500">
+                      ${item.price.toFixed(2)} x {item.qty} = $
+                      {(item.price * item.qty).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addToCartHandler(item)}
+                      disabled={item.qty >= item.countInStock}
+                    >
+                      +
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeFromCartHandler(item.product)}
+                    >
+                      -
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-            
-            <button
-              type="button"
-              className="btn btn-primary w-full flex items-center justify-center"
-              disabled={cartItems.length === 0}
-              onClick={checkoutHandler}
-            >
-              <ShoppingCart size={18} className="mr-2" />
-              Proceed to Checkout
-            </button>
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal ({cartItems.reduce((acc, item) => acc + item.qty, 0)} items)</span>
+                  <span>${cartItems.reduce((acc, item) => acc + item.price * item.qty, 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span>Free</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                  <span>Total</span>
+                  <span>${cartItems.reduce((acc, item) => acc + item.price * item.qty, 0).toFixed(2)}</span>
+                </div>
+              </div>
+              <Button
+                className="w-full mt-4"
+                onClick={checkoutHandler}
+                disabled={cartItems.length === 0}
+              >
+                Proceed to Checkout
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

@@ -1,22 +1,23 @@
 import { useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
-import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
+import { PayPalButtons, usePayPalScriptReducer, PayPalScriptOptions } from '@paypal/react-paypal-js';
+import type { PayPalButtonsComponentProps } from '@paypal/react-paypal-js/dist/types/types/paypalButtonTypes';
 import { toast } from 'react-toastify';
 import { Clock, CheckCircle } from 'lucide-react';
 import {
-  useGetOrderDetailsQuery,
-  usePayOrderMutation,
-  useGetPaypalClientIdQuery,
-  useDeliverOrderMutation,
+  useGetOrderByIdQuery,
+  useUpdateOrderToPaidMutation,
+  useUpdateOrderToDeliveredMutation,
 } from '../store/slices/ordersApiSlice';
-import { RootState } from '../store';
+import { RootState, Order, ApiErrorResponse, getErrorMessage, PayPalOrderResponse, PayPalScriptOptions as CustomPayPalScriptOptions } from '../types';
 import Loader from '../components/Loader';
 import Message from '../components/Message';
 
 const OrderPage = () => {
-  const { id: orderId } = useParams();
+  const { id: orderId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
   const {
@@ -24,231 +25,234 @@ const OrderPage = () => {
     refetch,
     isLoading,
     error,
-  } = useGetOrderDetailsQuery(orderId as string);
+  } = useGetOrderByIdQuery(orderId || '');
 
-  const [payOrder, { isLoading: loadingPay }] = usePayOrderMutation();
-  const [deliverOrder, { isLoading: loadingDeliver }] = useDeliverOrderMutation();
-  const { data: paypal, isLoading: loadingPayPal, error: errorPayPal } = useGetPaypalClientIdQuery({});
+  const [payOrder, { isLoading: loadingPay }] = useUpdateOrderToPaidMutation();
+  const [deliverOrder, { isLoading: loadingDeliver }] = useUpdateOrderToDeliveredMutation();
 
   const [{ isPending }, paypalDispatch] = usePayPalScriptReducer();
 
   useEffect(() => {
-    if (!errorPayPal && !loadingPayPal && paypal.clientId) {
-      const loadPaypalScript = async () => {
-        paypalDispatch({
-          type: 'resetOptions',
-          value: {
-            'client-id': paypal.clientId,
-            currency: 'USD',
-          },
-        });
-        paypalDispatch({ type: 'setLoadingStatus', value: 'pending' });
-      };
-      if (order && !order.isPaid) {
-        if (!window.paypal) {
-          loadPaypalScript();
-        }
-      }
+    if (!userInfo) {
+      navigate('/login');
     }
-  }, [errorPayPal, loadingPayPal, order, paypal, paypalDispatch]);
+  }, [userInfo, navigate]);
 
-  function onApprove(data, actions) {
-    return actions.order.capture().then(async function (details) {
-      try {
-        await payOrder({ orderId: orderId as string, details }).unwrap();
-        refetch();
-        toast.success('Order is paid');
-      } catch (err) {
-        toast.error(err?.data?.message || err.error);
-      }
-    });
-  }
-
-  function onError(err) {
-    toast.error(err.message);
-  }
-
-  function createOrder(data, actions) {
-    return actions.order
-      .create({
-        purchase_units: [
-          {
-            amount: { value: order.totalPrice },
-          },
-        ],
-      })
-      .then((orderID) => {
-        return orderID;
+  useEffect(() => {
+    if (!order?.isPaid) {
+      const options: PayPalScriptOptions = {
+        clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
+        currency: 'EUR',
+      };
+      paypalDispatch({
+        type: 'resetOptions',
+        value: options,
       });
-  }
+    }
+  }, [order?.isPaid, paypalDispatch]);
 
-  const deliverHandler = async () => {
-    await deliverOrder(orderId as string);
-    refetch();
+  const onApprove = async (_data: unknown, actions: any) => {
+    if (!orderId) return;
+    
+    try {
+      const details = await actions.order.capture() as PayPalOrderResponse;
+      await payOrder({
+        id: orderId,
+        paymentDetails: {
+          orderId: details.id,
+          paymentId: details.purchase_units[0].payments.captures[0].id,
+          status: details.status,
+          email_address: details.payer.email_address
+        }
+      }).unwrap();
+      refetch();
+      toast.success('Payment successful');
+    } catch (err) {
+      const error = err as unknown as ApiErrorResponse;
+      toast.error(getErrorMessage(error));
+    }
+  };
+
+  const onError: PayPalButtonsComponentProps['onError'] = (err) => {
+    toast.error(getErrorMessage(err as ApiErrorResponse));
+  };
+
+  const createPayPalOrder: PayPalButtonsComponentProps['createOrder'] = (_data, actions) => {
+    return actions.order.create({
+      intent: 'CAPTURE',
+      purchase_units: [
+        {
+          amount: {
+            currency_code: 'USD',
+            value: order?.totalPrice.toString() || '0',
+          },
+        },
+      ],
+    });
+  };
+
+  const deliverOrderHandler = async () => {
+    if (!orderId) return;
+    
+    try {
+      await deliverOrder({ id: orderId }).unwrap();
+      refetch();
+      toast.success('Order delivered');
+    } catch (err) {
+      const error = err as unknown as ApiErrorResponse;
+      toast.error(getErrorMessage(error));
+    }
   };
 
   return isLoading ? (
     <Loader />
   ) : error ? (
-    <Message variant="danger">
-      {error?.data?.message || error.error}
-    </Message>
+    <Message variant="danger">{getErrorMessage(error as ApiErrorResponse)}</Message>
   ) : (
     <>
       <Helmet>
-        <title>Order {order._id} | TechShop</title>
+        <title>Order {order?._id}</title>
       </Helmet>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2">
-          <h1 className="text-2xl font-bold mb-4">Order {order._id}</h1>
-          
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold mb-8">Order {order?._id}</h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-4">Shipping</h2>
-              <p className="text-gray-700 mb-1">
-                <strong>Name:</strong> {order.user.name}
+              <h2 className="text-lg font-semibold mb-4">Shipping</h2>
+              <p>
+                <strong>Name:</strong> {order?.user.name}
               </p>
-              <p className="text-gray-700 mb-1">
-                <strong>Email:</strong> {order.user.email}
+              <p>
+                <strong>Email:</strong>{' '}
+                <a href={`mailto:${order?.user.email}`} className="text-primary hover:underline">
+                  {order?.user.email}
+                </a>
               </p>
-              <p className="text-gray-700 mb-1">
-                <strong>Address:</strong> {order.shippingAddress.address},{' '}
-                {order.shippingAddress.city} {order.shippingAddress.postalCode},{' '}
-                {order.shippingAddress.country}
+              <p>
+                <strong>Address:</strong> {order?.shippingAddress.address},{' '}
+                {order?.shippingAddress.city} {order?.shippingAddress.postalCode},{' '}
+                {order?.shippingAddress.country}
               </p>
-              
-              <div className="mt-4">
-                {order.isDelivered ? (
-                  <Message variant="success">
-                    <div className="flex items-center">
-                      <CheckCircle size={18} className="mr-2" />
-                      Delivered on {new Date(order.deliveredAt).toLocaleDateString()}
-                    </div>
-                  </Message>
-                ) : (
-                  <Message variant="warning">
-                    <div className="flex items-center">
-                      <Clock size={18} className="mr-2" />
-                      Not Delivered
-                    </div>
-                  </Message>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-4">Payment Method</h2>
-              <p className="text-gray-700 mb-1">
-                <strong>Method:</strong> {order.paymentMethod}
-              </p>
-              
-              <div className="mt-4">
-                {order.isPaid ? (
-                  <Message variant="success">
-                    <div className="flex items-center">
-                      <CheckCircle size={18} className="mr-2" />
-                      Paid on {new Date(order.paidAt).toLocaleDateString()}
-                    </div>
-                  </Message>
-                ) : (
-                  <Message variant="warning">
-                    <div className="flex items-center">
-                      <Clock size={18} className="mr-2" />
-                      Not Paid
-                    </div>
-                  </Message>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-4">Order Items</h2>
-              
-              <div className="space-y-4">
-                {order.orderItems.map((item, index) => (
-                  <div key={index} className="flex items-center py-2">
-                    <div className="w-16 h-16">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <Link
-                        to={`/product/${item.product}`}
-                        className="text-gray-900 hover:text-primary"
-                      >
-                        {item.name}
-                      </Link>
-                    </div>
-                    <div className="text-right">
-                      {item.qty} x ${item.price} = ${(item.qty * item.price).toFixed(2)}
-                    </div>
+              {order?.isDelivered ? (
+                <Message variant="success">
+                  <div className="flex items-center">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Delivered on {new Date(order.deliveredAt!).toLocaleDateString()}
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="md:col-span-1">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-bold mb-4">Order Summary</h2>
-            
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between">
-                <span>Items:</span>
-                <span>${order.itemsPrice}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Shipping:</span>
-                <span>${order.shippingPrice}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tax:</span>
-                <span>${order.taxPrice}</span>
-              </div>
-              <div className="flex justify-between font-bold border-t pt-3">
-                <span>Total:</span>
-                <span>${order.totalPrice}</span>
-              </div>
+                </Message>
+              ) : (
+                <Message variant="warning">
+                  <div className="flex items-center">
+                    <Clock className="w-5 h-5 mr-2" />
+                    Not Delivered
+                  </div>
+                </Message>
+              )}
             </div>
 
-            {!order.isPaid && (
-              <div>
-                {loadingPay && <Loader />}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4">Payment Method</h2>
+              <p>
+                <strong>Method:</strong> {order?.paymentMethod}
+              </p>
+              {order?.isPaid ? (
+                <Message variant="success">
+                  <div className="flex items-center">
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Paid on {new Date(order.paidAt!).toLocaleDateString()}
+                  </div>
+                </Message>
+              ) : (
+                <Message variant="warning">
+                  <div className="flex items-center">
+                    <Clock className="w-5 h-5 mr-2" />
+                    Not Paid
+                  </div>
+                </Message>
+              )}
+            </div>
+
+            {!order?.isPaid && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-semibold mb-4">Pay Order</h2>
                 {isPending ? (
                   <Loader />
                 ) : (
-                  <div>
-                    <PayPalButtons
-                      createOrder={createOrder}
-                      onApprove={onApprove}
-                      onError={onError}
-                    ></PayPalButtons>
-                  </div>
+                  <PayPalButtons
+                    createOrder={createPayPalOrder}
+                    onApprove={onApprove}
+                    onError={onError}
+                    style={{ layout: 'vertical' }}
+                  />
                 )}
               </div>
             )}
 
-            {loadingDeliver && <Loader />}
-            
-            {userInfo &&
-              userInfo.isAdmin &&
-              order.isPaid &&
-              !order.isDelivered && (
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    className="btn btn-primary w-full"
-                    onClick={deliverHandler}
-                  >
-                    Mark As Delivered
-                  </button>
+            {userInfo?.isAdmin && order?.isPaid && !order?.isDelivered && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <button
+                  type="button"
+                  className="btn btn-primary w-full"
+                  onClick={deliverOrderHandler}
+                  disabled={loadingDeliver}
+                >
+                  {loadingDeliver ? 'Processing...' : 'Mark As Delivered'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4">Order Items</h2>
+              {order?.orderItems.map((item) => (
+                <div key={item.product._id} className="flex items-center py-4 border-b last:border-0">
+                  <div className="w-16 h-16 flex-shrink-0">
+                    <img
+                      src={item.product.image}
+                      alt={item.product.name}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </div>
+                  <div className="ml-4 flex-grow">
+                    <Link
+                      to={`/product/${item.product._id}`}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {item.product.name}
+                    </Link>
+                    <p className="text-sm text-gray-500">
+                      {item.quantity} x ${item.price.toFixed(2)} = $
+                      {(item.quantity * item.price).toFixed(2)}
+                    </p>
+                  </div>
                 </div>
-              )}
+              ))}
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Items</span>
+                  <span>${order?.itemsPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span>${order?.shippingPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span>${order?.taxPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-semibold border-t pt-2 mt-2">
+                  <span>Total</span>
+                  <span>${order?.totalPrice.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

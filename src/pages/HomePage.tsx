@@ -1,24 +1,22 @@
-import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowRight } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import CategoryGrid from '../components/CategoryGrid';
 import Loader from '../components/Loader';
 import Message from '../components/Message';
 import { useGetCategoriesQuery } from '../store/slices/categoriesApiSlice';
-import { useGetFeaturedProductsQuery, useGetTopProductsQuery, useGetProductsQuery } from '../store/slices/productsApiSlice';
+import { useGetFeaturedProductsQuery, useGetProductsQuery, useGetTopProductsQuery } from '../store/slices/productsApiSlice';
 // Import Slider component and slick-carousel styles
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 
 const HomePage: React.FC = () => {
-  const { data: categories, isLoading: isLoadingCategories, error: errorCategories } = useGetCategoriesQuery({});
-  const { data: featuredProducts, isLoading: isLoadingFeaturedProducts, error: errorFeaturedProducts } = useGetFeaturedProductsQuery({});
-  const { data: newProductsData, isLoading: isLoadingNewProducts, error: errorNewProducts } = useGetProductsQuery({ isNewProduct: 'true' });
+  const { data: categories, isLoading: isLoadingCategories, error: errorCategories } = useGetCategoriesQuery({ pageNumber: 1 });
+  const { data: featuredProducts, isLoading: isLoadingFeaturedProducts, error: errorFeaturedProducts } = useGetFeaturedProductsQuery();
+  const { data: newProductsData, isLoading: isLoadingNewProducts, error: errorNewProducts } = useGetProductsQuery({ keyword: '', pageNumber: 1 });
   const newProducts = newProductsData?.products || [];
-  const { data: topProducts, isLoading: isLoadingTopProducts, error: errorTopProducts } = useGetTopProductsQuery({});
+  const { data: topProducts, isLoading: isLoadingTopProducts, error: errorTopProducts } = useGetTopProductsQuery();
 
   // Define banner data
   const banners = [

@@ -38,9 +38,11 @@ export const usersApi = createApi({
         method: 'POST',
       }),
     }),
-    getUsers: builder.query<User[], void>({
-      query: () => '/users',
-      providesTags: ['User'],
+    getUsers: builder.query<{ users: User[]; pages: number; page: number }, { pageNumber?: number }>({
+      query: ({ pageNumber = 1 }) => ({
+        url: `/users?pageNumber=${pageNumber}`,
+      }),
+      providesTags: (_result, _error) => [{ type: 'User', id: 'LIST' }],
     }),
     getUserById: builder.query<User, string>({
       query: (id) => `/users/${id}`,
@@ -52,7 +54,7 @@ export const usersApi = createApi({
         method: 'PUT',
         body: user,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'User', id }],
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'User', id }],
     }),
     deleteUser: builder.mutation<void, string>({
       query: (id) => ({

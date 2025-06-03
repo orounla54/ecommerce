@@ -4,9 +4,10 @@ import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-toastify';
 import { ArrowLeft } from 'lucide-react';
 import {
-  useGetUserDetailsQuery,
+  useGetUserByIdQuery,
   useUpdateUserMutation,
 } from '../../store/slices/usersApiSlice';
+import { ApiErrorResponse, getErrorMessage } from '../../types';
 import Loader from '../../components/Loader';
 import Message from '../../components/Message';
 
@@ -18,7 +19,7 @@ const UserEditPage = () => {
   const [email, setEmail] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const { data: user, isLoading, error, refetch } = useGetUserDetailsQuery(userId as string);
+  const { data: user, isLoading, error, refetch } = useGetUserByIdQuery(userId ?? '');
   const [updateUser, { isLoading: loadingUpdate }] = useUpdateUserMutation();
 
   useEffect(() => {
@@ -34,10 +35,12 @@ const UserEditPage = () => {
     
     try {
       await updateUser({
-        userId,
-        name,
-        email,
-        isAdmin,
+        id: userId ?? '',
+        user: {
+          name,
+          email,
+          isAdmin,
+        },
       }).unwrap();
       
       refetch();
@@ -68,7 +71,7 @@ const UserEditPage = () => {
           <Loader />
         ) : error ? (
           <Message variant="danger">
-            {error?.data?.message || error.error}
+            {getErrorMessage(error as ApiErrorResponse)}
           </Message>
         ) : (
           <form onSubmit={submitHandler} className="p-6 space-y-6">

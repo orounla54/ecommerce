@@ -4,6 +4,7 @@ import ProductCard from './ProductCard';
 import { selectProducts, selectProductStatus, selectProductError } from '../store/slices/productSlice';
 import Loader from './Loader';
 import Message from './Message';
+import { Product } from '../types';
 
 const ProductGrid: React.FC = () => {
   const products = useSelector(selectProducts);
@@ -24,7 +25,7 @@ const ProductGrid: React.FC = () => {
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {products.map((product) => (
+      {products.map((product: Product) => (
         <ProductCard key={product._id} product={product} />
       ))}
     </div>

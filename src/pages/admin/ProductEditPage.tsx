@@ -4,11 +4,12 @@ import { Helmet } from 'react-helmet-async';
 import { toast } from 'react-toastify';
 import { ArrowLeft, Upload } from 'lucide-react';
 import {
-  useGetProductDetailsQuery,
+  useGetProductByIdQuery,
   useUpdateProductMutation,
   useUploadProductImageMutation,
 } from '../../store/slices/productsApiSlice';
 import { useGetCategoriesQuery } from '../../store/slices/categoriesApiSlice';
+import { ApiErrorResponse, getErrorMessage } from '../../types';
 import Loader from '../../components/Loader';
 import Message from '../../components/Message';
 
@@ -25,7 +26,7 @@ const ProductEditPage = () => {
   const [description, setDescription] = useState('');
   const [featured, setFeatured] = useState(false);
 
-  const { data: product, isLoading, error } = useGetProductDetailsQuery(productId as string);
+  const { data: product, isLoading, error } = useGetProductByIdQuery(productId ?? '');
   const { data: categories } = useGetCategoriesQuery({});
 
   const [updateProduct, { isLoading: loadingUpdate }] = useUpdateProductMutation();
@@ -37,7 +38,7 @@ const ProductEditPage = () => {
       setPrice(product.price);
       setImage(product.image);
       setBrand(product.brand);
-      setCategory(product.category?._id || '');
+      setCategory(typeof product.category === 'string' ? product.category : product.category._id);
       setCountInStock(product.countInStock);
       setDescription(product.description);
       setFeatured(product.featured || false);
@@ -49,15 +50,17 @@ const ProductEditPage = () => {
     
     try {
       await updateProduct({
-        productId,
-        name,
-        price,
-        image,
-        brand,
-        category,
-        countInStock,
-        description,
-        featured,
+        id: productId ?? '',
+        product: {
+          name,
+          price,
+          description,
+          image,
+          brand,
+          category,
+          countInStock,
+          featured,
+        },
       }).unwrap();
       
       toast.success('Product updated');
@@ -104,7 +107,7 @@ const ProductEditPage = () => {
           <Loader />
         ) : error ? (
           <Message variant="danger">
-            {error?.data?.message || error.error}
+            {getErrorMessage(error as ApiErrorResponse)}
           </Message>
         ) : (
           <form onSubmit={submitHandler} className="p-6 space-y-6">

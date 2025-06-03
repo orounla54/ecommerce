@@ -6,9 +6,20 @@ import { toast } from 'react-toastify';
 import { useCreateOrderMutation } from '../store/slices/ordersApiSlice';
 import { clearCartItems } from '../store/slices/cartSlice';
 import { RootState } from '../store';
+import { FetchBaseQueryError } from '@reduxjs/toolkit/query';
+import { SerializedError } from '@reduxjs/toolkit';
 import CheckoutSteps from '../components/CheckoutSteps';
 import Loader from '../components/Loader';
 import Message from '../components/Message';
+import { Order, OrderItem, ShippingAddress, ApiErrorResponse, getErrorMessage } from '../types';
+import { CartItem } from '../store/slices/cartSlice';
+
+interface ApiError {
+  status: number;
+  data: {
+    message: string;
+  };
+}
 
 const PlaceOrderPage = () => {
   const navigate = useNavigate();
@@ -28,21 +39,32 @@ const PlaceOrderPage = () => {
   }, [navigate, shippingAddress, paymentMethod]);
 
   const placeOrderHandler = async () => {
+    if (!shippingAddress || !paymentMethod) {
+      toast.error('Veuillez remplir l\'adresse de livraison et la méthode de paiement');
+      return;
+    }
+
     try {
       const res = await createOrder({
-        orderItems: cartItems,
+        orderItems: cartItems.map((item: CartItem) => ({
+          name: item.name,
+          qty: item.qty,
+          image: item.image,
+          price: item.price,
+          product: item._id,
+        })),
         shippingAddress,
         paymentMethod,
-        itemsPrice,
-        shippingPrice,
-        taxPrice,
-        totalPrice,
+        itemsPrice: cart.itemsPrice,
+        taxPrice: cart.taxPrice,
+        shippingPrice: cart.shippingPrice,
+        totalPrice: cart.totalPrice,
       }).unwrap();
       
       dispatch(clearCartItems());
       navigate(`/order/${res._id}`);
-    } catch (error: any) {
-      toast.error(error?.data?.message || error.error);
+    } catch (err) {
+      toast.error(getErrorMessage(err as ApiErrorResponse));
     }
   };
 
@@ -57,20 +79,24 @@ const PlaceOrderPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-2">
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-4">Shipping</h2>
-              <p className="text-gray-700 mb-1">
-                <strong>Address:</strong> {shippingAddress.address}, {shippingAddress.city}{' '}
-                {shippingAddress.postalCode}, {shippingAddress.country}
-              </p>
-            </div>
+            {shippingAddress && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-bold mb-4">Shipping</h2>
+                <p className="text-gray-700 mb-1">
+                  <strong>Address:</strong> {shippingAddress.address}, {shippingAddress.city}{' '}
+                  {shippingAddress.postalCode}, {shippingAddress.country}
+                </p>
+              </div>
+            )}
 
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-bold mb-4">Payment Method</h2>
-              <p className="text-gray-700">
-                <strong>Method:</strong> {paymentMethod}
-              </p>
-            </div>
+            {paymentMethod && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-lg font-bold mb-4">Payment Method</h2>
+                <p className="text-gray-700">
+                  <strong>Method:</strong> {paymentMethod.method}
+                </p>
+              </div>
+            )}
 
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-bold mb-4">Order Items</h2>

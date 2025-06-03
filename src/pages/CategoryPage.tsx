@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Filter } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
@@ -7,17 +7,22 @@ import Loader from '../components/Loader';
 import Message from '../components/Message';
 import Paginate from '../components/Paginate';
 import { useGetProductsByCategoryQuery } from '../store/slices/productsApiSlice';
+import { ApiErrorResponse, getErrorMessage } from '../types';
+import Meta from '../components/Meta';
 
 const CategoryPage = () => {
-  const { id: categoryId, pageNumber = '1' } = useParams();
+  const { categoryId, pageNumber = '1' } = useParams();
+  const { search } = useLocation();
+  const navigate = useNavigate();
   
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 1000]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   
   const { data, isLoading, error } = useGetProductsByCategoryQuery({
-    categoryId: categoryId as string,
-    pageNumber,
+    categoryId: categoryId || '',
+    pageNumber: parseInt(pageNumber, 10),
+    ...Object.fromEntries(new URLSearchParams(search)),
   });
 
   const toggleMobileFilters = () => {
@@ -52,6 +57,10 @@ const CategoryPage = () => {
 
   return (
     <>
+      <Meta title={data?.category?.name || 'Category'} />
+      <Link to="/" className="btn btn-light mb-4">
+        Go Back
+      </Link>
       <Helmet>
         <title>{data?.category?.name || 'Category'} | TechShop</title>
       </Helmet>
@@ -124,7 +133,7 @@ const CategoryPage = () => {
             <Loader />
           ) : error ? (
             <Message variant="danger">
-              {error?.data?.message || error.error}
+              {getErrorMessage(error as ApiErrorResponse)}
             </Message>
           ) : (
             <>
@@ -147,7 +156,7 @@ const CategoryPage = () => {
                   <Paginate
                     pages={data?.pages || 1}
                     page={data?.page || 1}
-                    categoryId={categoryId}
+                    categoryId={categoryId ? categoryId : ''}
                   />
                 </>
               )}

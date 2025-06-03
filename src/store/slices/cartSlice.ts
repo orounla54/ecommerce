@@ -12,7 +12,7 @@ interface PaymentMethod {
   method: 'PayPal' | 'Credit Card' | 'Stripe';
 }
 
-interface CartItem {
+export interface CartItem {
   _id: string;
   name: string;
   image: string;
@@ -21,7 +21,7 @@ interface CartItem {
   qty: number;
 }
 
-interface CartState {
+export interface CartState {
   cartItems: CartItem[];
   itemsPrice: number;
   shippingPrice: number;

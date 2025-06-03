@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../store';
+import { Product } from '../../types';
 
 interface Review {
   _id: string;
@@ -11,24 +12,8 @@ interface Review {
   createdAt: string;
 }
 
-export interface Product {
-  _id: string;
-  name: string;
-  image: string;
-  description: string;
-  brand: string;
-  category: string;
-  price: number;
-  countInStock: number;
-  rating: number;
-  numReviews: number;
-  reviews: Review[];
-  featured: boolean;
-  isNewProduct: boolean;
-}
-
-interface ProductState {
-  items: Product[];
+export interface ProductState {
+  products: Product[];
   featured: Product[];
   selectedProduct: Product | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
@@ -38,7 +23,7 @@ interface ProductState {
 }
 
 const initialState: ProductState = {
-  items: [],
+  products: [],
   featured: [],
   selectedProduct: null,
   status: 'idle',
@@ -80,6 +65,15 @@ const productSlice = createSlice({
     clearSelectedProduct: (state) => {
       state.selectedProduct = null;
     },
+    setProducts: (state, action) => {
+      state.products = action.payload;
+    },
+    setSelectedProduct: (state, action) => {
+      state.selectedProduct = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -89,7 +83,7 @@ const productSlice = createSlice({
       })
       .addCase(fetchProducts.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.items = action.payload.products;
+        state.products = action.payload.products;
         state.page = action.payload.page;
         state.pages = action.payload.pages;
       })
@@ -124,15 +118,49 @@ const productSlice = createSlice({
   },
 });
 
-export const { clearSelectedProduct } = productSlice.actions;
+export const { clearSelectedProduct, setProducts, setSelectedProduct, setError } = productSlice.actions;
 
 // Sélecteurs avec vérification de sécurité
-export const selectProducts = (state: RootState) => state.products?.items || [];
-export const selectFeaturedProducts = (state: RootState) => state.products?.featured || [];
-export const selectSelectedProduct = (state: RootState) => state.products?.selectedProduct || null;
-export const selectProductStatus = (state: RootState) => state.products?.status || 'idle';
-export const selectProductError = (state: RootState) => state.products?.error || null;
-export const selectProductPage = (state: RootState) => state.products?.page || 1;
-export const selectProductPages = (state: RootState) => state.products?.pages || 1;
+export const selectProducts = (state: { productsApi: { queries: Record<string, { data?: { products: Product[] } }> } }) => {
+  const result = Object.values(state.productsApi.queries).find(
+    (query) => query.data?.products
+  );
+  return result?.data?.products || [];
+};
+
+export const selectFeaturedProducts = (state: RootState) => {
+  const result = state.productsApi.queries['getFeaturedProducts(undefined)']?.data;
+  return result || [];
+};
+
+export const selectSelectedProduct = (state: { productsApi: { queries: Record<string, { data?: Product }> } }) => {
+  const selectedId = state.productsApi.queries['getProductById(undefined)']?.data?._id;
+  return selectedId ? state.productsApi.queries[`getProductById(${selectedId})`]?.data : null;
+};
+
+export const selectProductStatus = (state: RootState) => {
+  const query = state.productsApi.queries['getProducts(undefined)'];
+  if (!query) return 'idle';
+  if (query.status === 'pending') return 'loading';
+  if (query.status === 'fulfilled') return 'succeeded';
+  if (query.status === 'rejected') return 'failed';
+  return 'idle';
+};
+
+export const selectProductError = (state: { product: { error: string | null } }) => state.product.error;
+
+export const selectProductPage = (state: { productsApi: { queries: Record<string, { data?: { page: number } }> } }) => {
+  const result = Object.values(state.productsApi.queries).find(
+    (query) => query.data?.page !== undefined
+  );
+  return result?.data?.page || 1;
+};
+
+export const selectProductPages = (state: { productsApi: { queries: Record<string, { data?: { pages: number } }> } }) => {
+  const result = Object.values(state.productsApi.queries).find(
+    (query) => query.data?.pages !== undefined
+  );
+  return result?.data?.pages || 1;
+};
 
 export default productSlice.reducer; 

@@ -8,6 +8,7 @@ import { useLoginMutation } from '../store/slices/usersApiSlice';
 import { setCredentials } from '../store/slices/authSlice';
 import { RootState } from '../store';
 import Loader from '../components/Loader';
+import { ApiErrorResponse, getErrorMessage, UserInfo } from '../types';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,7 @@ const LoginPage = () => {
 
   const [login, { isLoading }] = useLoginMutation();
 
-  const { userInfo } = useSelector((state: RootState) => state.auth);
+  const { userInfo } = useSelector((state: { auth: { userInfo: UserInfo | null } }) => state.auth);
 
   const { search } = useLocation();
   const sp = new URLSearchParams(search);
@@ -39,10 +40,16 @@ const LoginPage = () => {
     e.preventDefault();
     try {
       const res = await login({ email, password }).unwrap();
-      dispatch(setCredentials(res));
+      dispatch(setCredentials({
+        _id: res.userInfo._id,
+        name: res.userInfo.name,
+        email: res.userInfo.email,
+        isAdmin: res.userInfo.isAdmin,
+        token: res.token,
+      }));
       navigate(redirect);
-    } catch (err: any) {
-      toast.error(err?.data?.message || err.error);
+    } catch (err) {
+      toast.error(getErrorMessage(err as ApiErrorResponse));
     }
   };
 

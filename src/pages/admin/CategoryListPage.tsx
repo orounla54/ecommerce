@@ -8,6 +8,7 @@ import {
   useDeleteCategoryMutation,
   useCreateCategoryMutation,
 } from '../../store/slices/categoriesApiSlice';
+import { Category, ApiErrorResponse, getErrorMessage } from '../../types';
 import Loader from '../../components/Loader';
 import Message from '../../components/Message';
 
@@ -21,7 +22,7 @@ const CategoryListPage = () => {
   const [newCategoryDescription, setNewCategoryDescription] = useState('');
   const [newCategoryImage, setNewCategoryImage] = useState('');
 
-  const { data: categories, isLoading, refetch, error } = useGetCategoriesQuery({});
+  const { data: categories, isLoading, refetch, error } = useGetCategoriesQuery({ pageNumber: 1 });
   const [deleteCategory, { isLoading: loadingDelete }] = useDeleteCategoryMutation();
   const [createCategory, { isLoading: loadingCreate }] = useCreateCategoryMutation();
 
@@ -36,8 +37,8 @@ const CategoryListPage = () => {
       refetch();
       setDeleteModalOpen(false);
       toast.success('Category deleted');
-    } catch (err: any) {
-      toast.error(err?.data?.message || err.error);
+    } catch (err) {
+      toast.error(getErrorMessage(err as ApiErrorResponse));
     }
   };
 
@@ -60,8 +61,8 @@ const CategoryListPage = () => {
       setNewCategoryDescription('');
       setNewCategoryImage('');
       toast.success('Category created');
-    } catch (err: any) {
-      toast.error(err?.data?.message || err.error);
+    } catch (err) {
+      toast.error(getErrorMessage(err as ApiErrorResponse));
     }
   };
 
@@ -89,7 +90,7 @@ const CategoryListPage = () => {
           <Loader />
         ) : error ? (
           <Message variant="danger">
-            {error?.data?.message || error.error}
+            {getErrorMessage(error as ApiErrorResponse)}
           </Message>
         ) : (
           <div className="overflow-x-auto">
@@ -111,7 +112,7 @@ const CategoryListPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {categories?.map((category) => (
+                {categories?.map((category: Category) => (
                   <tr key={category._id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {category._id}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Category } from '../store/slices/categorySlice';
+import { Category } from '../types';
 import axios from 'axios';
 
 interface CategoryCardProps {

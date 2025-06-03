@@ -1,24 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { RootState } from '../store';
-
-export interface Category {
-  _id: string;
-  name: string;
-  description: string;
-  image: string;
-  productCount: number;
-}
+import { Category } from '../../types';
 
 interface CategoryState {
-  items: Category[];
+  categories: Category[];
   selectedCategory: Category | null;
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 }
 
 const initialState: CategoryState = {
-  items: [],
+  categories: [],
   selectedCategory: null,
   status: 'idle',
   error: null,
@@ -41,11 +34,17 @@ export const fetchCategoryById = createAsyncThunk(
 );
 
 const categorySlice = createSlice({
-  name: 'categories',
+  name: 'category',
   initialState,
   reducers: {
-    clearSelectedCategory: (state) => {
-      state.selectedCategory = null;
+    setCategories: (state, action) => {
+      state.categories = action.payload;
+    },
+    setSelectedCategory: (state, action) => {
+      state.selectedCategory = action.payload;
+    },
+    setError: (state, action) => {
+      state.error = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -56,7 +55,7 @@ const categorySlice = createSlice({
       })
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.items = action.payload;
+        state.categories = action.payload;
       })
       .addCase(fetchCategories.rejected, (state, action) => {
         state.status = 'failed';
@@ -77,12 +76,30 @@ const categorySlice = createSlice({
   },
 });
 
-export const { clearSelectedCategory } = categorySlice.actions;
+export const { setCategories, setSelectedCategory, setError } = categorySlice.actions;
 
-// Sélecteurs avec vérification de sécurité
-export const selectCategories = (state: RootState) => state.categories?.items || [];
-export const selectSelectedCategory = (state: RootState) => state.categories?.selectedCategory || null;
-export const selectCategoryStatus = (state: RootState) => state.categories?.status || 'idle';
-export const selectCategoryError = (state: RootState) => state.categories?.error || null;
+// Sélecteurs
+export const selectCategories = (state: { categoriesApi: { queries: Record<string, { data?: { categories: Category[] } }> } }) => {
+  const result = Object.values(state.categoriesApi.queries).find(
+    (query) => query.data?.categories
+  );
+  return result?.data?.categories || [];
+};
+
+export const selectSelectedCategory = (state: { categoriesApi: { queries: Record<string, { data?: Category }> } }) => {
+  const selectedId = state.categoriesApi.queries['getCategoryById(undefined)']?.data?._id;
+  return selectedId ? state.categoriesApi.queries[`getCategoryById(${selectedId})`]?.data : null;
+};
+
+export const selectCategoryStatus = (state: RootState) => {
+  const query = state.categoriesApi.queries['getCategories(undefined)'];
+  if (!query) return 'idle';
+  if (query.status === 'pending') return 'loading';
+  if (query.status === 'fulfilled') return 'succeeded';
+  if (query.status === 'rejected') return 'failed';
+  return 'idle';
+};
+
+export const selectCategoryError = (state: { category: { error: string | null } }) => state.category.error;
 
 export default categorySlice.reducer; 

@@ -5,8 +5,8 @@ import { toast } from 'react-toastify';
 import { Helmet } from 'react-helmet-async';
 import { Minus, Plus, Star, Truck, ShieldCheck, RotateCcw, ShoppingCart } from 'lucide-react';
 import {
-  useGetProductDetailsQuery,
-  useCreateReviewMutation,
+  useGetProductByIdQuery,
+  useCreateProductReviewMutation,
 } from '../store/slices/productsApiSlice';
 import { addToCart } from '../store/slices/cartSlice';
 import Rating from '../components/Rating';
@@ -35,9 +35,9 @@ const ProductPage = () => {
     isLoading,
     refetch,
     error,
-  } = useGetProductDetailsQuery(productId as string);
+  } = useGetProductByIdQuery(productId as string);
 
-  const [createReview, { isLoading: loadingReview }] = useCreateReviewMutation();
+  const [createReview, { isLoading: loadingReview }] = useCreateProductReviewMutation();
 
   useEffect(() => {
     const fetchImageUrl = async () => {
